@@ -44,16 +44,20 @@
         min-height: 100px;
         padding: 20px;
         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-        transition:
-          transform 0.2s,
-          border-color 0.2s;
         display: flex;
         align-items: center;
         justify-content: center;
+        animation: fadeIn 0.4s ease-in-out;
       }
-      .card:hover {
-        transform: translateY(-5px);
-        border-color: #55d498;
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
       .card h3 {
         margin: 0;
@@ -80,6 +84,51 @@
       button:active {
         transform: scale(0.97);
       }
+      button:disabled {
+        background-color: #72767d;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Checklist Styles */
+      .tracker-section {
+        margin-top: 60px;
+        border-top: 2px solid #43b581;
+        padding-top: 30px;
+        max-width: 1000px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .tracker-section h2 {
+        color: #43b581;
+        margin-bottom: 20px;
+      }
+      .checklist-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 15px;
+        text-align: left;
+        background-color: #23272a;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      }
+      .checklist-item {
+        display: flex;
+        align-items: center;
+        font-size: 1.1em;
+        color: #b9bbbe;
+      }
+      .checklist-item input[type="checkbox"] {
+        margin-right: 10px;
+        width: 18px;
+        height: 18px;
+        accent-color: #43b581;
+      }
+      .checked-text {
+        text-decoration: line-through;
+        color: #72767d;
+      }
     </style>
   </head>
   <body>
@@ -87,14 +136,21 @@
     <p>Click the button below to randomly select 5 Minecraft mobs!</p>
 
     <h2 id="header-text">WELCOME PLAYER TO MY MINECRAFT RANDOMIZER</h2>
-    <button onclick="randomizeMobs()">Generate 5 Mobs</button>
+    <button id="generate-btn" onclick="randomizeMobs()">Generate 5 Mobs</button>
 
     <div class="container" id="mob-container">
       <!-- Mobs will appear here -->
     </div>
 
+    <div class="tracker-section">
+      <h2>Mob Tracker</h2>
+      <div class="checklist-container" id="checklist">
+        <!-- Checkboxes will be generated here by JavaScript -->
+      </div>
+    </div>
+
     <script>
-      const mobs = [
+      const allMobs = [
         "Allay",
         "Armadillo",
         "Axolotl",
@@ -111,20 +167,14 @@
         "Cow",
         "Creaking",
         "Creeper",
-        "Dolphin",
         "Donkey",
         "Drowned",
-        "Elder Guardian",
-        "Ender Dragon",
         "Enderman",
         "Endermite",
         "Evoker",
         "Fox",
         "Frog",
-        "Ghast",
-        "Glow Squid",
         "Goat",
-        "Guardian",
         "Hoglin",
         "Horse",
         "Husk",
@@ -147,7 +197,6 @@
         "Ravager",
         "Salmon",
         "Sheep",
-        "Shulker",
         "Silverfish",
         "Skeleton",
         "Skeleton Horse",
@@ -170,41 +219,77 @@
         "Witch",
         "Wither",
         "Wither Skeleton",
-        "Wolf",
         "Zoglin",
         "Zombie",
         "Zombie Villager",
         "Zombified Piglin",
       ];
 
-      let rollCount = 0; // Initialize our counter
+      let availableMobs = [...allMobs]; // Pool of mobs that haven't been picked yet
+      let rollCount = 0;
+
+      // Automatically build the checklist when the page loads
+      window.onload = function () {
+        const checklist = document.getElementById("checklist");
+
+        allMobs.forEach((mob) => {
+          const safeId = mob.replace(/\s+/g, "-"); // Replaces spaces with dashes for clean IDs
+          const label = document.createElement("label");
+          label.className = "checklist-item";
+          label.id = `label-${safeId}`;
+
+          // Checkboxes are disabled so the user can't manually uncheck them
+          label.innerHTML = `
+                    <input type="checkbox" id="chk-${safeId}" disabled> 
+                    ${mob}
+                `;
+          checklist.appendChild(label);
+        });
+      };
 
       function randomizeMobs() {
-        rollCount++; // Increase the counter by 1 each click
+        // Failsafe in case all mobs are used
+        if (availableMobs.length === 0) return;
 
-        // Change the welcome text to the counter
+        rollCount++;
         const header = document.getElementById("header-text");
         header.innerText = `Times randomized: ${rollCount}`;
 
         const container = document.getElementById("mob-container");
-        container.innerHTML = ""; // Clear previous results
+        container.innerHTML = ""; // Clear previous cards
 
-        // Create a copy of the array and shuffle it to ensure no duplicates and no bias
-        let shuffled = [...mobs].sort(() => 0.5 - Math.random());
+        // Shuffle the available mobs array
+        let shuffled = [...availableMobs].sort(() => 0.5 - Math.random());
 
-        // Slice the first 5 mobs from our freshly randomized array
+        // Pick up to 5 mobs (it will automatically pick fewer if less than 5 are left)
         let selectedMobs = shuffled.slice(0, 5);
 
+        // Remove the newly selected mobs from the available pool
+        availableMobs = availableMobs.filter(
+          (mob) => !selectedMobs.includes(mob),
+        );
+
         selectedMobs.forEach((mob) => {
+          // 1. Create the Card
           const card = document.createElement("div");
           card.className = "card";
-
-          card.innerHTML = `
-                    <h3>${mob}</h3>
-                `;
-
+          card.innerHTML = `<h3>${mob}</h3>`;
           container.appendChild(card);
+
+          // 2. Check off the box in the tracker
+          const safeId = mob.replace(/\s+/g, "-");
+          document.getElementById(`chk-${safeId}`).checked = true;
+          document
+            .getElementById(`label-${safeId}`)
+            .classList.add("checked-text");
         });
+
+        // Update button if we are officially out of mobs
+        if (availableMobs.length === 0) {
+          const btn = document.getElementById("generate-btn");
+          btn.innerText = "All Mobs Generated!";
+          btn.disabled = true;
+        }
       }
     </script>
   </body>
